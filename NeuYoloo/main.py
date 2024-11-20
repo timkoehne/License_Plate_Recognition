@@ -1,14 +1,14 @@
 import os
+from PIL import Image  # Zum Auslesen der Bildabmessungen
 
-def convert_to_yolo_format(input_folder, output_folder, image_width, image_height, class_id=1):
+def convert_to_yolo_format(input_folder, output_folder, class_id=1):
     """
     Wandelt Textdateien mit `position_vehicle`-Informationen in YOLO-Format um.
+    Verwendet die Abmessungen der zugehörigen Bilder, um die Werte zu normalisieren.
     Speichert die neuen Dateien in einem Ausgabeordner.
 
-    :param input_folder: Ordner mit den Eingabe-Textdateien.
+    :param input_folder: Ordner mit den Eingabe-Textdateien und zugehörigen Bildern.
     :param output_folder: Ordner, in dem die Ausgabedateien gespeichert werden.
-    :param image_width: Breite der Bilder in Pixel.
-    :param image_height: Höhe der Bilder in Pixel.
     :param class_id: Klassen-ID (Standard: 1 für 'car').
     """
     if not os.path.exists(output_folder):
@@ -20,10 +20,30 @@ def convert_to_yolo_format(input_folder, output_folder, image_width, image_heigh
             input_path = os.path.join(input_folder, filename)
             output_path = os.path.join(output_folder, filename)
 
+            # Erwarteter Bildpfad basierend auf dem Textdateinamen
+            image_name = os.path.splitext(filename)[0]  # Dateiname ohne Endung
+            image_path = None
+
+            # Suche nach einer passenden Bilddatei
+            for ext in ['.jpg', '.png', '.jpeg', '.bmp']:
+                potential_image_path = os.path.join(input_folder, image_name + ext)
+                if os.path.exists(potential_image_path):
+                    image_path = potential_image_path
+                    break
+
+            if not image_path:
+                print(f"Warnung: Kein passendes Bild für {filename} gefunden. Überspringe diese Datei.")
+                continue
+
+            # Lese die Bildabmessungen
+            with Image.open(image_path) as img:
+                image_width, image_height = img.size
+
             with open(input_path, 'r') as file:
                 lines = file.readlines()
 
             # Suche nach `position_vehicle`
+            yolo_lines = []
             for line in lines:
                 if "position_vehicle:" in line:
                     # Extrahiere die Bounding-Box-Koordinaten
@@ -36,19 +56,18 @@ def convert_to_yolo_format(input_folder, output_folder, image_width, image_heigh
                     norm_width = width / image_width
                     norm_height = height / image_height
 
-                    # Schreibe das Ergebnis ins YOLO-Format
+                    # Bereite die YOLO-Format-Zeile vor
                     yolo_line = f"{class_id} {x_center:.6f} {y_center:.6f} {norm_width:.6f} {norm_height:.6f}\n"
+                    yolo_lines.append(yolo_line)
 
-                    # Speichere die neue Datei
-                    with open(output_path, 'w') as output_file:
-                        output_file.write(yolo_line)
+            # Schreibe das Ergebnis in eine neue Datei
+            with open(output_path, 'w') as output_file:
+                output_file.writelines(yolo_lines)
 
-    print(f"Konvertierung abgeschlossen Dateien sind im Ordner '{output_folder}' gespeichert.")
+    print(f"Konvertierung abgeschlossen. Dateien sind im Ordner '{output_folder}' gespeichert.")
 
 # Beispielaufruf
-input_folder = "input_folder"  # Ordner mit Original-Textdateien
+input_folder = "input_folder"  # Ordner mit Original-Textdateien und Bildern
 output_folder = "output_texts"  # Ordner für umgewandelte Dateien
-image_width = 1920  # Beispiel-Bildbreite
-image_height = 1080  # Beispiel-Bildhöhe
 
-convert_to_yolo_format(input_folder, output_folder, image_width, image_height)
+convert_to_yolo_format(input_folder, output_folder)
