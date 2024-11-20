@@ -4,6 +4,7 @@ import uuid
 from PIL import Image, ImageTransform
 from PIL import ImageOps
 import tqdm
+from read_image_label import read_label
 
 dataset_training = "E:/OpenScience Data/UFPR-ALPR dataset/training"
 
@@ -86,54 +87,6 @@ def _create_character_subimages(
             flipped.save(path + "/both_" + str(uuid.uuid4()) + ".png")
 
 
-def _read_image(name: str) -> tuple[Image.Image, dict]:
-    with open(name + ".txt", "r") as file:
-        image_data_lines = file.readlines()
-
-    meta_data = {
-        "license_plate": "",
-        "camera": "",
-        "position_vehicle": [],
-        "license_plate_corners": [],
-        "vehicle_type": "",
-        "vehicle_make": "",
-        "vehicle_model": "",
-        "vehicle_year": "",
-        "char_positions": [],
-    }
-    for line in image_data_lines:
-        line = line.strip()
-        if line.startswith("plate:"):
-            meta_data["license_plate"] = line[7:]
-        if line.startswith("camera:"):
-            meta_data["camera"] = line[8:]
-        if line.startswith("position_vehicle:"):
-            positions = line[18:].strip().split(" ")
-            meta_data["position_vehicle"] = [int(p) for p in positions]
-        if line.startswith("corners:"):
-            corners = []
-            corners_text = line[9:].split(" ")
-            for corner in corners_text:
-                c0, c1 = corner.split(",")
-                corners.append((int(c0), int(c1)))
-            meta_data["license_plate_corners"] = corners
-        if line.startswith("type:"):
-            meta_data["vehicle_type"] = line[6:]
-        if line.startswith("make:"):
-            meta_data["vehicle_make"] = line[6:]
-        if line.startswith("model:"):
-            meta_data["vehicle_model"] = line[7:]
-        if line.startswith("year:"):
-            meta_data["vehicle_year"] = line[6:]
-        if line.startswith("char "):
-            positions = line[9:].split(" ")
-            positions = tuple([int(p) for p in positions])
-            meta_data["char_positions"].append(positions)
-
-    img = Image.open(name + ".png")
-    return img, meta_data
-
-
 def _create_license_plate_subimages_minmax(
     name: str, image: Image.Image, corners: list[tuple[int, int]]
 ):
@@ -171,22 +124,24 @@ def _create_license_plate_subimages_rotated(
 
 
 def generate_all_character_images():
-    filenames = [
+    filepaths = [
         name[:-4] for name in glob.glob(dataset_training + "/**/*.png", recursive=True)
     ]
-    for filename in tqdm.tqdm(filenames):
-        img, meta_data = _read_image(filename)
+    for filepath in tqdm.tqdm(filepaths):
+        img = Image.open(filepath+".png")
+        meta_data = read_label(filepath+".txt")
         chars = meta_data["char_positions"]
         license_plate = meta_data["license_plate"]
         _create_character_subimages(img, license_plate, chars)
 
 
 def generate_all_license_plate_subimages():
-    filenames = [
+    filepaths = [
         name[:-4] for name in glob.glob(dataset_training + "/**/*.png", recursive=True)
     ]
-    for filepath in tqdm.tqdm(filenames):
-        img, meta_data = _read_image(filepath)
+    for filepath in tqdm.tqdm(filepaths):
+        img = Image.open(filepath+".png")
+        meta_data = read_label(filepath+".txt")
         corners = meta_data["license_plate_corners"]
         filename = filepath[filepath.rindex(os.sep) + 1 :]
         _create_license_plate_subimages_minmax(filename, img, corners)
