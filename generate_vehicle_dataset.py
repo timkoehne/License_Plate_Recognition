@@ -94,7 +94,7 @@ def generate_data_file():
 
 
 def generate_cfg_file():
-    shutil.copyfile("dataset_template_files/yolov2.cfg", output_path + network_name + ".cfg")
+    shutil.copyfile("dataset_template_files/yolov2_vehicles.cfg", output_path + network_name + ".cfg")
 
 
 def add_pretrained_weights():
