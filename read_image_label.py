@@ -22,8 +22,8 @@ def read_label(filepath: str) -> dict:
         if line.startswith("camera:"):
             label["camera"] = line[8:]
         if line.startswith("position_vehicle:"):
-            positions = line[18:].strip().split(" ")
-            label["position_vehicle"] = [int(p) for p in positions]
+            position = line[18:].strip().split(" ")
+            label["position_vehicle"] = [int(p) for p in position]
         if line.startswith("corners:"):
             corners = []
             corners_text = line[9:].split(" ")
@@ -40,7 +40,7 @@ def read_label(filepath: str) -> dict:
         if line.startswith("year:"):
             label["vehicle_year"] = line[6:]
         if line.startswith("char "):
-            positions = line[9:].split(" ")
+            positions = line[8:].split(" ")
             positions = tuple([int(p) for p in positions])
             label["char_positions"].append(positions)
 
