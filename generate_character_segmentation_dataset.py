@@ -31,8 +31,8 @@ class DataPoint:
         license_plate_top_left, license_plate_top_right, license_plate_bottom_right, license_plate_bottom_left = self.label["license_plate_corners"]
         license_plate_x_min = min(license_plate_top_left[0], license_plate_bottom_left[0])
         license_plate_x_max = max(license_plate_top_right[0], license_plate_bottom_right[0])
-        license_plate_y_min = min(license_plate_top_left[1], license_plate_bottom_left[1])
-        license_plate_y_max = max(license_plate_top_right[1], license_plate_bottom_right[1])
+        license_plate_y_min = min(license_plate_top_left[1], license_plate_top_right[1])
+        license_plate_y_max = max(license_plate_bottom_left[1], license_plate_bottom_right[1])
         license_plate_width = license_plate_x_max - license_plate_x_min
         license_plate_height = license_plate_y_max - license_plate_y_min
         self.image = image.crop((license_plate_x_min, license_plate_y_min,license_plate_x_min + license_plate_width, license_plate_y_min + license_plate_height))
@@ -41,7 +41,8 @@ class DataPoint:
     def generate_to_yolo_format(self):
         license_plate_top_left, license_plate_top_right, license_plate_bottom_right, license_plate_bottom_left = self.label["license_plate_corners"]
         license_plate_x_min = min(license_plate_top_left[0], license_plate_bottom_left[0])
-        license_plate_y_min = min(license_plate_top_left[1], license_plate_bottom_left[1])
+        license_plate_y_min = min(license_plate_top_left[1], license_plate_top_right[1])
+        license_plate_y_max = max(license_plate_bottom_left[1], license_plate_bottom_right[1])
         
         yolo_lines = []
         for character in self.label["char_positions"]:
@@ -49,12 +50,26 @@ class DataPoint:
             x_min -= license_plate_x_min
             y_min -= license_plate_y_min
             # print((x_min, y_min, width, height))
-        
+
             x_center = (x_min + width / 2) / self.image.width
             y_center = (y_min + height / 2) / self.image.height
             norm_width = width / self.image.width
             norm_height = height / self.image.height
             class_id = 0
+
+            if x_center < 0 or x_center > 1 or y_center < 0 or y_center > 1 or norm_width < 0 or norm_width > 1 or norm_height < 0 or norm_height > 1:
+                
+                print(f"char pos: {character}")
+                print(f"x_min: {x_min}")
+                print(f"y_min: {y_min}")
+                print(f"width: {width}")
+                print(f"height: {height}")
+                print(f"image_width: {self.image.width}")
+                print(f"image_height: {self.image.height}")
+                print(f"x_center={x_center} y_center={y_center} norm_width={norm_width} norm_height={norm_height}")
+                print(f"license_plate_y_min={license_plate_y_min} license_plate_y_max={license_plate_y_max}")
+                raise Exception("incorrect x_center value")
+
 
             # Schreibe das Ergebnis ins YOLO-Format
             yolo_lines.append(f"{class_id} {x_center:.6f} {y_center:.6f} {norm_width:.6f} {norm_height:.6f}\n")
@@ -66,7 +81,6 @@ def save_image(image: Image.Image, yolo_format: str, save_images_path: str, file
     with open(
         save_images_path + "/" + filename + ".txt", "w"
     ) as file:
-        yolo_format = yolo_format
         file.write(yolo_format)
 
 def generate_data(
@@ -146,3 +160,21 @@ generate_valid_file()
 generate_data_file()
 generate_cfg_file()
 generate_run_command()
+
+
+# test = DataPoint(f"{training_path}track0012/track0012[29].png", f"{training_path}track0012/track0012[29].txt")
+# yolo_format = test.generate_to_yolo_format()
+# print(yolo_format)
+
+
+
+# image = test.image
+# yolo_format = test.generate_to_yolo_format()
+
+# filename = test.filename[:test.filename.index(".")]
+# fileending = test.filename[test.filename.index("."):]
+# save_image(image, yolo_format, "./", filename, fileending)
+
+# negative_img = generate_negative_image(image)
+# negative_img_filename = filename + "-negative"
+# save_image(negative_img, yolo_format, "./", negative_img_filename, fileending)

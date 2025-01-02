@@ -34,8 +34,8 @@ class DataPoint:
         top_left, top_right, bottom_right, bottom_left = self.label["license_plate_corners"]
         x_min = min(top_left[0], bottom_left[0])
         x_max = max(top_right[0], bottom_right[0])
-        y_min = min(top_left[1], bottom_left[1])
-        y_max = max(top_right[1], bottom_right[1])
+        y_min = min(top_left[1], top_right[1])
+        y_max = max(bottom_left[1], bottom_right[1])
         width = x_max - x_min
         height = y_max - y_min
         
