@@ -13,12 +13,11 @@ output_path = "/home/tim/"
 network_name = "character_recognition_digit"
 
 CLASS_IDS = { 
-    '0': 0, '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9
+    'digit_0': 0, 'digit_1': 1, 'digit_2': 2, 'digit_3': 3, 'digit_4': 4, 'digit_5': 5, 'digit_6': 6, 'digit_7': 7, 'digit_8': 8, 'digit_9': 9
 }
 
 output_path = output_path + network_name + "/"
-if not os.path.exists(output_path + "backup/"):
-    os.makedirs(output_path + "backup/", exist_ok=True)
+os.makedirs(output_path + "backup/", exist_ok=True)
 
 
 class Character_Datapoint:
@@ -30,11 +29,6 @@ class Character_Datapoint:
         self.image: Image.Image = image.crop((x_min, y_min, x_max, y_max))
         self.filename = filename
         self.text: str = text
-        
-    def generate_to_yolo_format(self):
-        yolo_line = f"{CLASS_IDS[self.text]} 0.5 0.5 1 1\n"
-        return yolo_line
-
 
 
 class DataPoint:
@@ -54,13 +48,10 @@ class DataPoint:
             self.characters.append(Character_Datapoint(self.image, f"{filename_without_fileending}-{i}{fileending}", char_positions[i], char_text[i]))
 
 
-def save_image(image: Image.Image, yolo_format: str, save_images_path: str, filename:str, fileending: str):
-    image.save(save_images_path + "/" + filename + fileending)
-    with open(
-        save_images_path + "/" + filename + ".txt", "w"
-    ) as file:
-        yolo_format = yolo_format
-        file.write(yolo_format)
+def save_image(image: Image.Image, classname: str, save_images_path: str, filename:str, fileending: str):
+    class_path = save_images_path + f"/{classname}"
+    image.save(class_path + "/" + filename + fileending)
+
 
 def generate_data(
     load_images_path: str, save_images_path: str):
@@ -76,30 +67,30 @@ def generate_data(
         
         for character_datapoint in datapoint.characters:
             data.append(character_datapoint)
-        
-
 
     if not os.path.exists(save_images_path):
         os.makedirs(save_images_path, exist_ok=True)
+        for classname in CLASS_IDS:
+            os.makedirs(save_images_path + f"/{classname}", exist_ok=True)
 
     print(f"loading data from {load_images_path}...")
     for d in tqdm.tqdm(data):
         image = d.image
-        yolo_format = d.generate_to_yolo_format()
+        image_classname = f"digit_{d.text}"
         
         filename = d.filename[:d.filename.index(".")]
         fileending = d.filename[d.filename.index("."):]
-        save_image(image, yolo_format, save_images_path, filename, fileending)
+        save_image(image, image_classname, save_images_path, filename, fileending)
         
         negative_img = generate_negative_image(image)
         negative_img_filename = filename + "-negative"
-        save_image(negative_img, yolo_format, save_images_path, negative_img_filename, fileending)
+        save_image(negative_img, image_classname, save_images_path, negative_img_filename, fileending)
         
         
         flipped_imgs = generate_flipped_images(image, d.text)
         for i, flipped_img in enumerate(flipped_imgs):
-            flipped_img_filename = filename + f"-{i}"
-            save_image(flipped_img, yolo_format, save_images_path, flipped_img_filename, fileending)
+            flipped_img_filename = filename + f"-flipped-{i}"
+            save_image(flipped_img, image_classname, save_images_path, flipped_img_filename, fileending)
 
 
 def generate_names_file():
@@ -108,13 +99,13 @@ def generate_names_file():
 
 
 def generate_train_file():
-    image_files = [name for name in glob.glob(output_path + "train/*.png")]
+    image_files = [name for name in glob.glob(output_path + "train/**/*.png", recursive=True)]
     with open(output_path + network_name + f"_train.txt", "w") as file:
         file.write("\n".join(image_files))
 
 
 def generate_valid_file():
-    image_files = [name for name in glob.glob(output_path + "valid/*.png")]
+    image_files = [name for name in glob.glob(output_path + "valid/**/*.png", recursive=True)]
     with open(output_path + network_name + f"_valid.txt", "w") as file:
         file.write("\n".join(image_files))
 
@@ -124,9 +115,9 @@ def generate_data_file():
     lines.append(f"classes = {len(CLASS_IDS)}")
     lines.append(f"train = {output_path+network_name}_train.txt")
     lines.append(f"valid = {output_path+network_name}_valid.txt")
-    lines.append(f"names = {output_path+network_name}.names")
+    lines.append(f"labels = {output_path+network_name}.names")
     lines.append(f"backup = {output_path}backup/")
-    with open(output_path + network_name + ".data", "w") as file:
+    with open(f"{output_path+network_name}.data", "w") as file:
         file.write("\n".join(lines))
 
 
@@ -139,7 +130,7 @@ def generate_run_command():
 
     print("finished creating all data. Start training with:")
     print(
-        f"darknet detector train -map -dont_show {data_file} {cfg_file}"
+        f"darknet classifier train {data_file} {cfg_file}"
     )
 
 
