@@ -1,5 +1,6 @@
 import glob
 import os
+from random import shuffle
 import shutil
 from typing import Literal, Tuple
 from PIL import Image
@@ -90,6 +91,12 @@ def generate_data(
         flipped_imgs = generate_flipped_images(image, d.text)
         for i, flipped_img in enumerate(flipped_imgs):
             flipped_img_filename = filename + f"-flipped-{i}"
+            if image_classname == "digit_6":
+                print("digit 6 class changed to digit 9")
+                image_classname = "digit_9"
+            elif image_classname == "digit_9":
+                print("digit 9 class changed to digit 6")
+                image_classname = "digit_6"
             save_image(flipped_img, image_classname, save_images_path, flipped_img_filename, fileending)
 
 
@@ -100,6 +107,7 @@ def generate_names_file():
 
 def generate_train_file():
     image_files = [name for name in glob.glob(output_path + "train/**/*.png", recursive=True)]
+    shuffle(image_files)
     with open(output_path + network_name + f"_train.txt", "w") as file:
         file.write("\n".join(image_files))
 
