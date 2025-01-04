@@ -5,11 +5,14 @@ import tqdm
 import cv2
 from darknet_python import darknet
 
-cfg_file = "/home/tim/vehicles/vehicles.cfg"
-names_file = "/home/tim/vehicles/vehicles.names"
-weights_file = "/home/tim/vehicles/backup/vehicles_best.weights"
-# weights_file = "/home/tim/vehicles/backup/vehicles_30000.weights"
-validation_files = "/home/tim/vehicles/vehicles_valid.txt"
+
+
+network_name = "character_recognition_digit_fix"
+
+cfg_file = f"/home/tim/{network_name}/{network_name}.cfg"
+names_file = f"/home/tim/{network_name}/{network_name}.names"
+validation_files = f"/home/tim/{network_name}/{network_name}_valid.txt"
+weights_file = f"/home/tim/{network_name}/backup/{network_name}_final.weights"
 
 
 # https://stackoverflow.com/a/71708600
