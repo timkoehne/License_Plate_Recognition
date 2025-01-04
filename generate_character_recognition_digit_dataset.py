@@ -13,6 +13,7 @@ validation_path = "/mnt/f/OpenScience Data/UFPR-ALPR dataset/validation/"
 output_path = "/home/tim/"
 network_name = "character_recognition_digit"
 
+PADDING = 1
 CLASS_IDS = { 
     'digit_0': 0, 'digit_1': 1, 'digit_2': 2, 'digit_3': 3, 'digit_4': 4, 'digit_5': 5, 'digit_6': 6, 'digit_7': 7, 'digit_8': 8, 'digit_9': 9
 }
@@ -23,10 +24,10 @@ os.makedirs(output_path + "backup/", exist_ok=True)
 
 class Character_Datapoint:
     def __init__(self, image: Image.Image, filename: str, rect: Tuple[int, int, int, int] , text: str):
-        x_min = rect[0]
-        y_min = rect[1]
-        x_max = rect[0] + rect[2]
-        y_max = rect[1] + rect[3]
+        x_min = rect[0] - PADDING
+        y_min = rect[1] - PADDING
+        x_max = rect[0] + rect[2] + PADDING
+        y_max = rect[1] + rect[3] + PADDING
         self.image: Image.Image = image.crop((x_min, y_min, x_max, y_max))
         self.filename = filename
         self.text: str = text
@@ -92,10 +93,8 @@ def generate_data(
         for i, flipped_img in enumerate(flipped_imgs):
             flipped_img_filename = filename + f"-flipped-{i}"
             if image_classname == "digit_6":
-                print("digit 6 class changed to digit 9")
                 image_classname = "digit_9"
             elif image_classname == "digit_9":
-                print("digit 9 class changed to digit 6")
                 image_classname = "digit_6"
             save_image(flipped_img, image_classname, save_images_path, flipped_img_filename, fileending)
 

@@ -13,6 +13,7 @@ validation_path = "/mnt/f/OpenScience Data/UFPR-ALPR dataset/validation/"
 output_path = "/home/tim/"
 network_name = "character_recognition_letter"
 
+PADDING = 1
 CLASS_IDS = { 
     'letter_A': 0, 'letter_B': 1, 'letter_C': 2, 'letter_D': 3, 'letter_E': 4, 'letter_F': 5, 'letter_G': 6, 'letter_H': 7, 'letter_I': 8, 'letter_J': 9,
     'letter_K': 10, 'letter_L': 11, 'letter_M': 12, 'letter_N': 13, 'letter_O': 14, 'letter_P': 15, 'letter_Q': 16, 'letter_R': 17, 'letter_S': 18, 'letter_T': 19,
@@ -25,10 +26,10 @@ os.makedirs(output_path + "backup/", exist_ok=True)
 
 class Character_Datapoint:
     def __init__(self, image: Image.Image, filename: str, rect: Tuple[int, int, int, int] , text: str):
-        x_min = rect[0]
-        y_min = rect[1]
-        x_max = rect[0] + rect[2]
-        y_max = rect[1] + rect[3]
+        x_min = rect[0] - PADDING
+        y_min = rect[1] - PADDING
+        x_max = rect[0] + rect[2] + PADDING
+        y_max = rect[1] + rect[3] + PADDING
         self.image: Image.Image = image.crop((x_min, y_min, x_max, y_max))
         self.filename = filename
         self.text: str = text
