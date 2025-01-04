@@ -1,3 +1,4 @@
+from curses.ascii import isalpha
 import glob
 import os
 from random import shuffle
@@ -47,8 +48,13 @@ class DataPoint:
         self.characters: list[Character_Datapoint] = []
         filename_without_fileending = self.filename[:self.filename.index(".")]
         fileending = self.filename[self.filename.index("."):]
-        for i in range(0, 3):
-            self.characters.append(Character_Datapoint(self.image, f"{filename_without_fileending}-{i}{fileending}", char_positions[i], char_text[i]))
+        for i in range(0, 7):
+            if isalpha(char_text[i]):
+                self.characters.append(Character_Datapoint(self.image, f"{filename_without_fileending}-{i}{fileending}", char_positions[i], char_text[i]))
+            if char_text[i] == "0":
+                self.characters.append(Character_Datapoint(self.image, f"{filename_without_fileending}-{i}{fileending}", char_positions[i], "O"))
+            if char_text[i] == "1":
+                self.characters.append(Character_Datapoint(self.image, f"{filename_without_fileending}-{i}{fileending}", char_positions[i], "I"))
 
 
 def save_image(image: Image.Image, classname: str, save_images_path: str, filename:str, fileending: str):
