@@ -96,6 +96,60 @@ def load_subimage(image, center_x: float, center_y: float, width: float, height:
     return image
 
 
+def adjust_bb(bb: Tuple[float, float, float, float], original_image_width: float, original_image_height: float, target_image_width: float, target_image_height: float):
+    img_ratio = original_image_width / original_image_height
+    target_ratio = target_image_width / target_image_height
+
+    if img_ratio > target_ratio:
+        new_width = target_image_width
+        new_height = int(target_image_width / img_ratio)
+    else:
+        new_height = target_image_height
+        new_width = int(target_image_height * img_ratio)
+
+    width_ratio = new_width / original_image_width
+    height_ratio = new_height / original_image_height
+
+    left_pad = (target_image_width - new_width) // 2
+    top_pad = (target_image_height - new_height) // 2
+    
+    center_x, center_y, width, height = bb
+    new_center_x = center_x * width_ratio + left_pad
+    new_center_y = center_y * height_ratio + top_pad
+    new_width_box = width * width_ratio
+    new_height_box = height * height_ratio
+
+    return (new_center_x, new_center_y, new_width_box, new_height_box)
+
+
+def resize_image(cv2_image, target_width: int, target_height: int):
+    img_height, img_width = cv2_image.shape[:2]
+    img_ratio = img_width / img_height
+    target_ratio = target_width / target_height
+
+    if img_ratio > target_ratio:
+        new_width = target_width
+        new_height = int(target_width / img_ratio)
+    else:
+        new_height = target_height
+        new_width = int(target_height * img_ratio)
+    resized_img = cv2.resize(cv2_image, (new_width, new_height), interpolation=cv2.INTER_AREA)
+
+    result_img = np.zeros((target_height, target_width, 3), dtype=np.uint8)
+    top_pad = (target_height - new_height) // 2
+    left_pad = (target_width - new_width) // 2
+
+    result_img[top_pad:top_pad + new_height, left_pad:left_pad + new_width] = resized_img
+    return result_img
+
 def save_image(cv_image, filepath: str, width: int, height: int):
     cv_image = cv2.cvtColor(cv_image, cv2.COLOR_RGB2BGR)
+    cv_image = resize_image(cv_image, width, height)
     cv2.imwrite(filepath, cv_image)
+    
+def draw_centered_box(image, center_x, center_y, width, height, color=(0, 255, 0), thickness=2):
+    x1 = int(center_x - width / 2)
+    y1 = int(center_y - height / 2)
+    x2 = int(center_x + width / 2)
+    y2 = int(center_y + height / 2)
+    cv2.rectangle(image, (x1, y1), (x2, y2), color, thickness)

@@ -1,6 +1,8 @@
 import glob
 import os
 import shutil
+import sys
+import cv2
 import tqdm
 import data_preparation
 from read_image_label import read_label
@@ -26,14 +28,20 @@ class DataPoint:
 
     def generate_to_yolo_format(self):
         x_min, y_min, width, height = self.label["position_vehicle"]
-        x_center = (x_min + width / 2) / len(self.image[0])
-        y_center = (y_min + height / 2) / len(self.image)
-        norm_width = width / len(self.image)
-        norm_height = height / len(self.image)
+        x_center = x_min + width/2
+        y_center = y_min + height/2
+        
+        bb = data_preparation.adjust_bb((x_center, y_center, width, height), len(self.image[0]), len(self.image), 416, 416)
+        x_center, y_center, width, height = bb
+
+        x_center_norm = x_center / 416
+        y_center_norm = y_center / 416
+        width_norm = width / 416
+        height_norm = height / 416
         class_id = CLASS_IDS[self.label["vehicle_type"]]
 
         # Schreibe das Ergebnis ins YOLO-Format
-        yolo_line = f"{class_id} {x_center:.6f} {y_center:.6f} {norm_width:.6f} {norm_height:.6f}\n"
+        yolo_line = f"{class_id} {x_center_norm:.6f} {y_center_norm:.6f} {width_norm:.6f} {height_norm:.6f}\n"
 
         return yolo_line
 

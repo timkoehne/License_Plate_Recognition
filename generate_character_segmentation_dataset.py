@@ -1,6 +1,7 @@
 import glob
 import os
 import shutil
+import cv2
 import tqdm
 from data_preparation import generate_negative_image
 import data_preparation
@@ -35,6 +36,8 @@ class DataPoint:
         license_plate_height = license_plate_y_max - license_plate_y_min
         
         self.image = self.image[license_plate_y_min:license_plate_y_min+license_plate_height, license_plate_x_min:license_plate_x_min+license_plate_width]
+        # self.image = cv2.resize(self.image, (int(2.75*len(self.image)), len(self.image)))
+        # this also requires the yolo data to scale by the same factor
 
 
     def generate_to_yolo_format(self):
@@ -48,16 +51,20 @@ class DataPoint:
             x_min, y_min, width, height = character
             x_min -= license_plate_x_min
             y_min -= license_plate_y_min
-            # print((x_min, y_min, width, height))
 
-            x_center = (x_min + width / 2) / len(self.image[0])
-            y_center = (y_min + height / 2) / len(self.image)
-            norm_width = width / len(self.image[0])
-            norm_height = height / len(self.image)
+            x_center = (x_min + width / 2)
+            y_center = (y_min + height / 2)
+            
+            bb = data_preparation.adjust_bb((x_center, y_center, width, height), len(self.image[0]), len(self.image), 256, 96)
+            x_center, y_center, width, height = bb
+            
+            x_center_norm = x_center / 256
+            y_center_norm = y_center / 96
+            width_norm = width / 256
+            height_norm = height / 96
             class_id = 0
 
-            if x_center < 0 or x_center > 1 or y_center < 0 or y_center > 1 or norm_width < 0 or norm_width > 1 or norm_height < 0 or norm_height > 1:
-                
+            if x_center_norm < 0 or x_center_norm > 1 or y_center_norm < 0 or y_center_norm > 1 or width_norm < 0 or width_norm > 1 or height_norm < 0 or height_norm > 1:
                 print(f"char pos: {character}")
                 print(f"x_min: {x_min}")
                 print(f"y_min: {y_min}")
@@ -65,13 +72,12 @@ class DataPoint:
                 print(f"height: {height}")
                 print(f"image_width: {len(self.image[0])}")
                 print(f"image_height: {len(self.image)}")
-                print(f"x_center={x_center} y_center={y_center} norm_width={norm_width} norm_height={norm_height}")
+                print(f"x_center={x_center_norm} y_center={y_center_norm} norm_width={width_norm} norm_height={height_norm}")
                 print(f"license_plate_y_min={license_plate_y_min} license_plate_y_max={license_plate_y_max}")
                 raise Exception("incorrect x_center value")
 
-
             # Schreibe das Ergebnis ins YOLO-Format
-            yolo_lines.append(f"{class_id} {x_center:.6f} {y_center:.6f} {norm_width:.6f} {norm_height:.6f}\n")
+            yolo_lines.append(f"{class_id} {x_center_norm:.6f} {y_center_norm:.6f} {width_norm:.6f} {height_norm:.6f}\n")
 
         return "".join(yolo_lines)
 
