@@ -122,7 +122,10 @@ def adjust_bb(bb: Tuple[float, float, float, float], original_image_width: float
     return (new_center_x, new_center_y, new_width_box, new_height_box)
 
 
-def resize_image(cv2_image, target_width: int, target_height: int):
+def resize_image(cv2_image, target_width: float, target_height: float):
+    target_width = int(target_width)
+    target_height = int(target_height)
+    
     img_height, img_width = cv2_image.shape[:2]
     img_ratio = img_width / img_height
     target_ratio = target_width / target_height
@@ -133,6 +136,7 @@ def resize_image(cv2_image, target_width: int, target_height: int):
     else:
         new_height = target_height
         new_width = int(target_height * img_ratio)
+    
     resized_img = cv2.resize(cv2_image, (new_width, new_height), interpolation=cv2.INTER_AREA)
 
     result_img = np.zeros((target_height, target_width, 3), dtype=np.uint8)

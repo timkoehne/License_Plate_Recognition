@@ -36,8 +36,6 @@ class DataPoint:
         license_plate_height = license_plate_y_max - license_plate_y_min
         
         self.image = self.image[license_plate_y_min:license_plate_y_min+license_plate_height, license_plate_x_min:license_plate_x_min+license_plate_width]
-        # self.image = cv2.resize(self.image, (int(2.75*len(self.image)), len(self.image)))
-        # this also requires the yolo data to scale by the same factor
 
 
     def generate_to_yolo_format(self):
@@ -55,7 +53,14 @@ class DataPoint:
             x_center = (x_min + width / 2)
             y_center = (y_min + height / 2)
             
-            bb = data_preparation.adjust_bb((x_center, y_center, width, height), len(self.image[0]), len(self.image), 256, 96)
+            
+            # scale x and width to 2.75*height to bring motorcycle licenseplates in correct aspectratio
+            width_scale_factor = (2.75 * len(self.image)) / len(self.image[0]) 
+            streched_image_width = len(self.image[0]) * width_scale_factor
+            x_center *= width_scale_factor
+            width *= width_scale_factor
+            
+            bb = data_preparation.adjust_bb((x_center, y_center, width, height), streched_image_width, len(self.image), 256, 96)
             x_center, y_center, width, height = bb
             
             x_center_norm = x_center / 256
@@ -82,6 +87,9 @@ class DataPoint:
         return "".join(yolo_lines)
 
 def save_image(cv_image, yolo_format: str, save_images_path: str, filename:str, fileending: str):
+    # strech bb width to 2.75*height, to normalize motorcycle licenseplates
+    streched_width = int(2.75 * len(cv_image))
+    cv_image = cv2.resize(cv_image, (streched_width, len(cv_image)))
     
     filepath = save_images_path + "/" + filename + fileending
     data_preparation.save_image(cv_image, filepath, 256, 96)
