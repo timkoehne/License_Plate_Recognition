@@ -1,10 +1,9 @@
 import glob
 import os
 import shutil
-from typing import Literal
-from PIL import Image
 import tqdm
 from data_preparation import generate_negative_image
+import data_preparation
 from read_image_label import read_label
 
 training_path = "/mnt/f/OpenScience Data/UFPR-ALPR dataset/training/"
@@ -25,8 +24,7 @@ class DataPoint:
         self.filename = image_filepath[image_filepath.rindex(os.sep) + 1 :]
         self.label = read_label(label_filepath)
         self.char_text = self.label["license_plate"]
-        
-        image = Image.open(self.image_path)
+        self.image = data_preparation.load_cv2_image(self.image_path)
         
         license_plate_top_left, license_plate_top_right, license_plate_bottom_right, license_plate_bottom_left = self.label["license_plate_corners"]
         license_plate_x_min = min(license_plate_top_left[0], license_plate_bottom_left[0])
@@ -35,8 +33,9 @@ class DataPoint:
         license_plate_y_max = max(license_plate_bottom_left[1], license_plate_bottom_right[1])
         license_plate_width = license_plate_x_max - license_plate_x_min
         license_plate_height = license_plate_y_max - license_plate_y_min
-        self.image = image.crop((license_plate_x_min, license_plate_y_min,license_plate_x_min + license_plate_width, license_plate_y_min + license_plate_height))
         
+        self.image = self.image[license_plate_y_min:license_plate_y_min+license_plate_height, license_plate_x_min:license_plate_x_min+license_plate_width]
+
 
     def generate_to_yolo_format(self):
         license_plate_top_left, license_plate_top_right, license_plate_bottom_right, license_plate_bottom_left = self.label["license_plate_corners"]
@@ -51,10 +50,10 @@ class DataPoint:
             y_min -= license_plate_y_min
             # print((x_min, y_min, width, height))
 
-            x_center = (x_min + width / 2) / self.image.width
-            y_center = (y_min + height / 2) / self.image.height
-            norm_width = width / self.image.width
-            norm_height = height / self.image.height
+            x_center = (x_min + width / 2) / len(self.image[0])
+            y_center = (y_min + height / 2) / len(self.image)
+            norm_width = width / len(self.image[0])
+            norm_height = height / len(self.image)
             class_id = 0
 
             if x_center < 0 or x_center > 1 or y_center < 0 or y_center > 1 or norm_width < 0 or norm_width > 1 or norm_height < 0 or norm_height > 1:
@@ -64,8 +63,8 @@ class DataPoint:
                 print(f"y_min: {y_min}")
                 print(f"width: {width}")
                 print(f"height: {height}")
-                print(f"image_width: {self.image.width}")
-                print(f"image_height: {self.image.height}")
+                print(f"image_width: {len(self.image[0])}")
+                print(f"image_height: {len(self.image)}")
                 print(f"x_center={x_center} y_center={y_center} norm_width={norm_width} norm_height={norm_height}")
                 print(f"license_plate_y_min={license_plate_y_min} license_plate_y_max={license_plate_y_max}")
                 raise Exception("incorrect x_center value")
@@ -76,8 +75,11 @@ class DataPoint:
 
         return "".join(yolo_lines)
 
-def save_image(image: Image.Image, yolo_format: str, save_images_path: str, filename:str, fileending: str):
-    image.save(save_images_path + "/" + filename + fileending)
+def save_image(cv_image, yolo_format: str, save_images_path: str, filename:str, fileending: str):
+    
+    filepath = save_images_path + "/" + filename + fileending
+    data_preparation.save_image(cv_image, filepath, 256, 96)
+    
     with open(
         save_images_path + "/" + filename + ".txt", "w"
     ) as file:
@@ -89,15 +91,13 @@ def generate_data(
         name for name in glob.glob(load_images_path + "**/*.png", recursive=True)
     ]
     text_files = [name[:-4] + ".txt" for name in image_files]
-    data = [
-        DataPoint(img, txt) for img, txt in tqdm.tqdm(zip(image_files, text_files), total=len(image_files))
-    ]
 
     if not os.path.exists(save_images_path):
         os.makedirs(save_images_path, exist_ok=True)
 
-    print(f"loading data from {load_images_path}...")
-    for d in tqdm.tqdm(data):
+    print(f"loading files from {load_images_path}...")
+    for img, txt in tqdm.tqdm(zip(image_files, text_files), total=len(image_files)):
+        d = DataPoint(img, txt)
         image = d.image
         yolo_format = d.generate_to_yolo_format()
         

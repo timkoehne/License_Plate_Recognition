@@ -1,10 +1,8 @@
 import glob
 import os
 import shutil
-from typing import Literal
-from PIL import Image
-import PIL
 import tqdm
+import data_preparation
 from read_image_label import read_label
 
 training_path = "/mnt/f/OpenScience Data/UFPR-ALPR dataset/training/"
@@ -24,10 +22,10 @@ class DataPoint:
         self.image_path = image_filepath
         self.filename = image_filepath[image_filepath.rindex(os.sep) + 1 :]
         self.label = read_label(label_filepath)
+        self.image = data_preparation.load_cv2_image(self.image_path)
         
-        image = Image.open(self.image_path)
         vehicle_x, vehicle_y, vehicle_width, vehicle_height = self.label["position_vehicle"]
-        self.image = image.crop((vehicle_x, vehicle_y,vehicle_x + vehicle_width, vehicle_y + vehicle_height))
+        self.image = self.image[vehicle_y:vehicle_y+vehicle_height, vehicle_x:vehicle_x+vehicle_width]
         
 
     def generate_to_yolo_format(self):
@@ -45,10 +43,10 @@ class DataPoint:
         y_min -= vehicle_y
         y_max -= vehicle_y
         
-        x_center = (x_min + width / 2) / self.image.width
-        y_center = (y_min + height / 2) / self.image.height
-        norm_width = width / self.image.width
-        norm_height = height / self.image.height
+        x_center = (x_min + width / 2) / len(self.image[0])
+        y_center = (y_min + height / 2) / len(self.image)
+        norm_width = width / len(self.image[0])
+        norm_height = height / len(self.image)
         class_id = 0
 
         # Schreibe das Ergebnis ins YOLO-Format
@@ -63,21 +61,17 @@ def generate_data(
         name for name in glob.glob(load_images_path + "**/*.png", recursive=True)
     ]
     text_files = [name[:-4] + ".txt" for name in image_files]
-    data = [
-        DataPoint(img, txt) for img, txt in tqdm.tqdm(zip(image_files, text_files), total=len(image_files))
-    ]
 
     if not os.path.exists(save_images_path):
         os.makedirs(save_images_path, exist_ok=True)
 
-    print(f"loading data from {load_images_path}...")
-    for d in tqdm.tqdm(data):
-        img = d.image.resize((int(2.75*d.image.height), d.image.height))
-        img.save(save_images_path + "/" + d.filename)
+    print(f"loading files from {load_images_path}...")
+    for img, txt in tqdm.tqdm(zip(image_files, text_files), total=len(image_files)):
+        d = DataPoint(img, txt)
+        filepath = save_images_path + "/" + d.filename
+        data_preparation.save_image(d.image, filepath, 416, 416)
         
-        with open(
-            save_images_path + "/" + d.filename[: d.filename.index(".")] + ".txt", "w"
-        ) as file:
+        with open(save_images_path + "/" + d.filename[: d.filename.index(".")] + ".txt", "w") as file:
             yolo_format = d.generate_to_yolo_format()
             file.write(yolo_format)
 
