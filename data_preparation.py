@@ -55,17 +55,14 @@ CHARACTERS_TO_MIRROR_BOTH = [
 def generate_flipped_images(cv_image, letter: str):
     return_images = []
     
-    # vertical mirror
-    if letter in CHARACTERS_TO_MIRROR_VERTICAL:
+    if letter in CHARACTERS_TO_MIRROR_HORIZONTAL:
         flipped = cv2.flip(cv_image, 0)
         return_images.append(flipped)
 
-    # horizontal mirror
-    if letter in CHARACTERS_TO_MIRROR_HORIZONTAL:
+    if letter in CHARACTERS_TO_MIRROR_VERTICAL:
         flipped = cv2.flip(cv_image, 1)
         return_images.append(flipped)
 
-    # vertical and horizontal mirror
     if letter in CHARACTERS_TO_MIRROR_BOTH:
         flipped = cv2.flip(cv_image, -1)
         return_images.append(flipped)

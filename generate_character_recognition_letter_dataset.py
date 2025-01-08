@@ -92,11 +92,10 @@ def generate_data(
             negative_img_filename = filename + "-negative"
             save_image(negative_img, image_classname, save_images_path, negative_img_filename, fileending)
         
-        
-        flipped_imgs = generate_flipped_images(image, character_datapoint.text)
-        for i, flipped_img in enumerate(flipped_imgs):
-            flipped_img_filename = filename + f"-{i}"
-            save_image(flipped_img, image_classname, save_images_path, flipped_img_filename, fileending)
+            flipped_imgs = generate_flipped_images(image, character_datapoint.text)
+            for i, flipped_img in enumerate(flipped_imgs):
+                flipped_img_filename = filename + f"-flipped-{i}"
+                save_image(flipped_img, image_classname, save_images_path, flipped_img_filename, fileending)
 
 
 def generate_names_file():
