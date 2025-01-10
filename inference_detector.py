@@ -1,13 +1,11 @@
-import glob
 from typing import Tuple
 
 import tqdm
 import cv2
 from darknet_python import darknet
+import data_preparation
 
-
-
-network_name = "character_recognition_digit_fix"
+network_name = "vehicles"
 
 cfg_file = f"/home/tim/{network_name}/{network_name}.cfg"
 names_file = f"/home/tim/{network_name}/{network_name}.names"
@@ -43,22 +41,26 @@ def close_by(highest_confidence_detection_bounding_box, correct_bounding_box):
             break
     return close_enough
 
-def load_darknet_image(filename):
+def preprocess_image(filename: str):
     image_bgr = cv2.imread(filename)
     image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
-    image_resized = cv2.resize(image_rgb, (width, height), interpolation=cv2.INTER_LINEAR)
+    image_resized = data_preparation.resize_image(image_rgb, width, height)
+    return image_resized
 
+def load_darknet_image(preprocessed_image):
     darknet_image = darknet.make_image(width, height, 3)
-    darknet.copy_image_from_bytes(darknet_image, image_resized.tobytes())
+    darknet.copy_image_from_bytes(darknet_image, preprocessed_image.tobytes())
     return darknet_image
 
 def load_image_label():
     txtfile = filename[:-4] + ".txt"
+    
     with open(txtfile, "r") as f:
-        correct_values = f.readline().strip().split(" ")
-        correct_bounding_box = (float(correct_values[1]) * width, float(correct_values[2]) * height, float(correct_values[3]) * width, float(correct_values[4]) * height)
+        values = f.readline().strip().split(" ")
+        correct_class = values[0]
+        correct_bounding_box = (float(values[1]) * width, float(values[2]) * height, float(values[3]) * width, float(values[4]) * height)
     # print(f"image contains: Class: {class_names[int(correct_values[0])]} - Bounding Box: {bounding_box}")
-    return int(correct_values[0]), correct_bounding_box
+    return (correct_class, correct_bounding_box)
 
 def calculate_results():
     print(f"There were {correct_predictions} correct predictions out of {len(validation_images)} images")
@@ -70,22 +72,22 @@ def calculate_results():
     print(f"Precision: {precision}")
     print(f"F1 Score: {f1_score}")
 
-def display_detection(detection, image_filename):
-    image_bgr = cv2.imread(image_filename)
-    image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
-    image_resized = cv2.resize(image_rgb, (width, height), interpolation=cv2.INTER_LINEAR)
-    
-    # display the results on the console
-    darknet.print_detections([detection], True)
-    # draw some boxes and labels over what was detected
-    image_with_boxes = darknet.draw_boxes([detection], image_resized, colours)
-    cv2.imshow("annotated image", cv2.cvtColor(image_with_boxes, cv2.COLOR_RGB2BGR))
-    wait_until_cv2_window_exit("annotated image")
+def display_image_with_bbox(cv2_image, bb: Tuple[float, float, float, float]):
+    center_x, center_y, width, height = bb
+    x1 = int(center_x - width / 2)
+    y1 = int(center_y - height / 2)
+    x2 = int(center_x + width / 2)
+    y2 = int(center_y + height / 2)
 
-network = darknet.load_net_custom(cfg_file.encode("ascii"), weights_file.encode("ascii"), 0, 1)
+    cv2.rectangle(cv2_image, (x1, y1), (x2, y2), (0, 255, 0), 2)  # Green bounding box
+
+    rgb_img = cv2.cvtColor(cv2_image, cv2.COLOR_BGR2RGB) 
+    cv2.imshow("Image with Bounding Box", rgb_img)
+    wait_until_cv2_window_exit("Image with Bounding Box")
+
+network = darknet.load_net(cfg_file.encode("ascii"), weights_file.encode("ascii"), 0)
 class_names = open(names_file).read().splitlines()
 
-colours = darknet.class_colors(class_names)
 
 prediction_threshold = 0.125
 width = darknet.network_width(network)
@@ -102,13 +104,11 @@ true_negatives = 0
 false_negatives = 0
 for filename in tqdm.tqdm(validation_images):
     # print(filename)
-    
     correct_class, correct_bounding_box = load_image_label()
-
-    darknet_image = load_darknet_image(filename)
+    cv2_image = preprocess_image(filename)
+    darknet_image = load_darknet_image(cv2_image)
     detections = darknet.detect_image(network, class_names, darknet_image, thresh=prediction_threshold)
     darknet.free_image(darknet_image)
-    # print("detections: " + str(detections))
     
     if len(detections) == 0:
         no_prediction += 1
@@ -118,17 +118,18 @@ for filename in tqdm.tqdm(validation_images):
     highest_confidence_detection_bounding_box = highest_confidence_detection[2]
     # print(f"highest_confidence_detection is {highest_confidence_detection}")
     
+    display_image_with_bbox(cv2_image, highest_confidence_detection_bounding_box)
+    
     if highest_confidence_detection[0] == class_names[int(correct_class)]:
         if close_by(highest_confidence_detection_bounding_box, correct_bounding_box):
             true_positives += 1
             correct_predictions += 1
         else:
             false_negatives += 1
-            # display_detection(highest_confidence_detection, filename)
     else:
         if close_by(highest_confidence_detection_bounding_box, correct_bounding_box):
             false_positives += 1
-        else: # 
+        else:
             true_negatives += 1
 
 calculate_results()
