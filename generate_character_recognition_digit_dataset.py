@@ -1,3 +1,4 @@
+from curses.ascii import isdigit
 import glob
 import os
 from random import shuffle
@@ -11,9 +12,9 @@ from read_image_label import read_label
 training_path = "/mnt/f/OpenScience Data/UFPR-ALPR dataset/training/"
 validation_path = "/mnt/f/OpenScience Data/UFPR-ALPR dataset/validation/"
 output_path = "/home/tim/"
-network_name = "character_recognition_digit"
+network_name = "character_recognition_digit_padding_4"
 
-PADDING = 1
+PADDING = 4
 CLASS_IDS = { 
     'digit_0': 0, 'digit_1': 1, 'digit_2': 2, 'digit_3': 3, 'digit_4': 4, 'digit_5': 5, 'digit_6': 6, 'digit_7': 7, 'digit_8': 8, 'digit_9': 9
 }
@@ -32,6 +33,10 @@ class Character_Datapoint:
         self.filename = filename
         self.text: str = text
 
+    def generate_to_yolo_format(self):
+        class_id = CLASS_IDS["digit_" + self.text]
+        return f"{class_id} 0.5 0.5 1 1"
+
 
 class DataPoint:
     def __init__(self, image_filepath, label_filepath) -> None:
@@ -45,18 +50,23 @@ class DataPoint:
         self.characters: list[Character_Datapoint] = []
         filename_without_fileending = self.filename[:self.filename.index(".")]
         fileending = self.filename[self.filename.index("."):]
-        for i in range(4, 7):
-            self.characters.append(Character_Datapoint(self.image, f"{filename_without_fileending}-{i}{fileending}", char_positions[i], char_text[i]))
+        for i in range(0, 7):
+            if isdigit(char_text[i]):
+                self.characters.append(Character_Datapoint(self.image, f"{filename_without_fileending}-{i}{fileending}", char_positions[i], char_text[i]))
 
 
-def save_image(cv_image, classname: str, save_images_path: str, filename:str, fileending: str):
-    class_path = save_images_path + f"/{classname}"
-    filepath = class_path + "/" + filename + fileending
-    data_preparation.save_image(cv_image, filepath, 42, 26)
+def save_image(cv_image, yolo_format: str, save_images_path: str, filename:str, fileending: str):
+    filepath = save_images_path + "/" + filename + fileending
+    data_preparation.save_image(cv_image, filepath, 64, 32)
+    with open(
+        save_images_path + "/" + filename + ".txt", "w"
+    ) as file:
+        file.write(yolo_format)
 
 
 def generate_data(
     load_images_path: str, save_images_path: str):
+    
     image_files = [
         name for name in glob.glob(load_images_path + "**/*.png", recursive=True)
     ]
@@ -64,35 +74,28 @@ def generate_data(
     
     if not os.path.exists(save_images_path):
         os.makedirs(save_images_path, exist_ok=True)
-        for classname in CLASS_IDS:
-            os.makedirs(save_images_path + f"/{classname}", exist_ok=True)
-    
+            
     print(f"loading files from {load_images_path}...")
     for img, txt in tqdm.tqdm(zip(image_files, text_files), total=len(image_files)):
         datapoint = DataPoint(img, txt)
         
         for character_datapoint in datapoint.characters:
             image = character_datapoint.image
-            image_classname = f"digit_{character_datapoint.text}"
+            yolo_format = character_datapoint.generate_to_yolo_format()
             
             filename = character_datapoint.filename[:character_datapoint.filename.index(".")]
             fileending = character_datapoint.filename[character_datapoint.filename.index("."):]
-            save_image(image, image_classname, save_images_path, filename, fileending)
+            save_image(image, yolo_format, save_images_path, filename, fileending)
             
             negative_img = generate_negative_image(image)
             negative_img_filename = filename + "-negative"
-            save_image(negative_img, image_classname, save_images_path, negative_img_filename, fileending)
-            
-            
+            save_image(negative_img, yolo_format, save_images_path, negative_img_filename, fileending)
+        
             flipped_imgs = generate_flipped_images(image, character_datapoint.text)
             for i, flipped_img in enumerate(flipped_imgs):
                 flipped_img_filename = filename + f"-flipped-{i}"
-                if image_classname == "digit_6":
-                    image_classname = "digit_9"
-                elif image_classname == "digit_9":
-                    image_classname = "digit_6"
-                save_image(flipped_img, image_classname, save_images_path, flipped_img_filename, fileending)
-
+                save_image(flipped_img, yolo_format, save_images_path, flipped_img_filename, fileending)
+            
 
 def generate_names_file():
     with open(output_path + network_name + ".names", "w") as file:
@@ -117,7 +120,7 @@ def generate_data_file():
     lines.append(f"classes = {len(CLASS_IDS)}")
     lines.append(f"train = {output_path+network_name}_train.txt")
     lines.append(f"valid = {output_path+network_name}_valid.txt")
-    lines.append(f"labels = {output_path+network_name}.names")
+    lines.append(f"names = {output_path+network_name}.names")
     lines.append(f"backup = {output_path}backup/")
     with open(f"{output_path+network_name}.data", "w") as file:
         file.write("\n".join(lines))
@@ -132,7 +135,7 @@ def generate_run_command():
 
     print("finished creating all data. Start training with:")
     print(
-        f"darknet classifier train {data_file} {cfg_file}"
+        f"darknet detector train -map -dont_show {data_file} {cfg_file}"
     )
 
 
