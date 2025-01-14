@@ -87,8 +87,19 @@ def load_darknet_image(cv2_image, width: int, height: int):
 def load_subimage(image, center_x: float, center_y: float, width: float, height: float):
     x = int(center_x - width/2)
     y = int(center_y - height/2)
-    width = int(width)
-    height = int(height)
+    
+    # with padding added this could be < 0 or > image_size which would break it
+    x = min(x, len(image[0]) - 2) # -2 because width needs to be atleast 1 aswell
+    y = min(y, len(image) - 2) # -2 because height needs to be atleast 1 aswell
+    x = max(0, x)
+    y = max(0, y)
+    if x+width > len(image[0]):
+        width = len(image[0]) - x - 2
+    if y+height > len(image):
+        height = len(image) - y - 2
+    width = max(1, round(width))
+    height = max(1, round(height))
+    
     image = image[y:y+height, x:x+width]
     return image
 
@@ -119,6 +130,30 @@ def adjust_bb(bb: Tuple[float, float, float, float], original_image_width: float
     return (new_center_x, new_center_y, new_width_box, new_height_box)
 
 
+def get_scaling_factor_and_padding(cv2_image, target_width: float, target_height: float):
+    target_width = int(target_width)
+    target_height = int(target_height)
+    
+    img_height, img_width = cv2_image.shape[:2]
+    img_ratio = img_width / img_height
+    target_ratio = target_width / target_height
+
+    if img_ratio > target_ratio:
+        new_width = target_width
+        new_height = int(target_width / img_ratio)
+    else:
+        new_height = target_height
+        new_width = int(target_height * img_ratio)
+
+    top_pad = (target_height - new_height) // 2
+    left_pad = (target_width - new_width) // 2
+    
+    scaling_factor = img_height / new_height
+    
+    return (scaling_factor, left_pad, top_pad)
+
+
+
 def resize_image(cv2_image, target_width: float, target_height: float):
     target_width = int(target_width)
     target_height = int(target_height)
@@ -134,6 +169,8 @@ def resize_image(cv2_image, target_width: float, target_height: float):
         new_height = target_height
         new_width = int(target_height * img_ratio)
     
+    new_width = max(1, new_width)
+    new_height = max(1, new_height)
     resized_img = cv2.resize(cv2_image, (new_width, new_height), interpolation=cv2.INTER_AREA)
 
     result_img = np.zeros((target_height, target_width, 3), dtype=np.uint8)
@@ -147,10 +184,3 @@ def save_image(cv_image, filepath: str, width: int, height: int):
     cv_image = cv2.cvtColor(cv_image, cv2.COLOR_RGB2BGR)
     cv_image = resize_image(cv_image, width, height)
     cv2.imwrite(filepath, cv_image)
-    
-def draw_centered_box(image, center_x, center_y, width, height, color=(0, 255, 0), thickness=2):
-    x1 = int(center_x - width / 2)
-    y1 = int(center_y - height / 2)
-    x2 = int(center_x + width / 2)
-    y2 = int(center_y + height / 2)
-    cv2.rectangle(image, (x1, y1), (x2, y2), color, thickness)
