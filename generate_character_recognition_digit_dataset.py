@@ -11,10 +11,11 @@ from read_image_label import read_label
 
 training_path = "/mnt/f/OpenScience Data/UFPR-ALPR dataset/training/"
 validation_path = "/mnt/f/OpenScience Data/UFPR-ALPR dataset/validation/"
+testing_path = "/mnt/f/OpenScience Data/UFPR-ALPR dataset/testing/"
 output_path = "/home/tim/"
-network_name = "character_recognition_digit_padding_4"
+network_name = "character_recognition_digit"
 
-PADDING = 4
+PADDING = 1
 CLASS_IDS = { 
     'digit_0': 0, 'digit_1': 1, 'digit_2': 2, 'digit_3': 3, 'digit_4': 4, 'digit_5': 5, 'digit_6': 6, 'digit_7': 7, 'digit_8': 8, 'digit_9': 9
 }
@@ -103,17 +104,23 @@ def generate_names_file():
 
 
 def generate_train_file():
-    image_files = [name for name in glob.glob(output_path + "train/**/*.png", recursive=True)]
+    image_files = [name for name in glob.glob(output_path + "train/*.png")]
     shuffle(image_files)
     with open(output_path + network_name + f"_train.txt", "w") as file:
         file.write("\n".join(image_files))
 
 
 def generate_valid_file():
-    image_files = [name for name in glob.glob(output_path + "valid/**/*.png", recursive=True)]
+    image_files = [name for name in glob.glob(output_path + "valid/*.png")]
     with open(output_path + network_name + f"_valid.txt", "w") as file:
         file.write("\n".join(image_files))
 
+
+def generate_test_file():
+    image_files = [name for name in glob.glob(output_path + "test/*.png")]
+    with open(output_path + network_name + f"_test.txt", "w") as file:
+        file.write("\n".join(image_files))
+        
 
 def generate_data_file():
     lines = []
@@ -141,9 +148,11 @@ def generate_run_command():
 
 generate_data(training_path, output_path + "train")
 generate_data(validation_path, output_path + "valid")
+generate_data(testing_path, output_path + "test")
 generate_names_file()
 generate_train_file()
 generate_valid_file()
+generate_test_file()
 generate_data_file()
 generate_cfg_file()
 generate_run_command()

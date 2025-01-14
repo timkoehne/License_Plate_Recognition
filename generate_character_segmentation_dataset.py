@@ -9,6 +9,7 @@ from read_image_label import read_label
 
 training_path = "/mnt/f/OpenScience Data/UFPR-ALPR dataset/training/"
 validation_path = "/mnt/f/OpenScience Data/UFPR-ALPR dataset/validation/"
+testing_path = "/mnt/f/OpenScience Data/UFPR-ALPR dataset/testing/"
 output_path = "/home/tim/"
 network_name = "character_segmentation"
 
@@ -142,6 +143,12 @@ def generate_valid_file():
         file.write("\n".join(image_files))
 
 
+def generate_test_file():
+    image_files = [name for name in glob.glob(output_path + "test/*.png")]
+    with open(output_path + network_name + f"_test.txt", "w") as file:
+        file.write("\n".join(image_files))
+
+
 def generate_data_file():
     lines = []
     lines.append(f"classes = {len(CLASS_IDS)}")
@@ -168,9 +175,11 @@ def generate_run_command():
 
 generate_data(training_path, output_path + "train")
 generate_data(validation_path, output_path + "valid")
+generate_data(testing_path, output_path + "test")
 generate_names_file()
 generate_train_file()
 generate_valid_file()
+generate_test_file()
 generate_data_file()
 generate_cfg_file()
 generate_run_command()
