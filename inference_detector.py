@@ -6,8 +6,8 @@ import cv2
 from darknet_python import darknet
 import data_preparation
 
-network_name = "character_recognition_letter"
-bb_percent_error_allowed = 1
+network_name = "licenseplate"
+bb_percent_error_allowed = 0.1
 
 cfg_file = f"/home/tim/{network_name}/{network_name}.cfg"
 names_file = f"/home/tim/{network_name}/{network_name}.names"
@@ -87,7 +87,43 @@ def display_image_with_bbox(cv2_image, bb: Tuple[float, float, float, float]):
     y2 = int(center_y + height / 2)
 
     bb_image = cv2_image.copy()
+    
     cv2.rectangle(bb_image, (x1, y1), (x2, y2), (0, 255, 0), 2) 
+    
+    cv2.imshow("Image with Bounding Box", bb_image)
+    wait_until_cv2_window_exit("Image with Bounding Box")
+
+def display_licenseplate(cv2_image, licenseplate_bb: Tuple[float, float, float, float], vehicle_bb: Tuple[float, float, float, float], text: str):
+    center_x, center_y, width, height = licenseplate_bb
+    licenseplate_x1 = int(center_x - width / 2)
+    licenseplate_y1 = int(center_y - height / 2)
+    licenseplate_x2 = int(center_x + width / 2)
+    licenseplate_y2 = int(center_y + height / 2)
+
+    center_x, center_y, width, height = vehicle_bb
+    vehicle_x1 = int(center_x - width / 2)
+    vehicle_y1 = int(center_y - height / 2)
+    vehicle_x2 = int(center_x + width / 2)
+    vehicle_y2 = int(center_y + height / 2)
+
+    bb_image = cv2_image.copy()
+    
+    font = cv2.FONT_HERSHEY_SIMPLEX
+      # Get text size
+
+    text_size, _ = cv2.getTextSize(text, font, 1, 2)
+    text_width, text_height = text_size
+
+    # Create a background rectangle
+    background_rect = (vehicle_x1, vehicle_y1 - text_height - 5), (vehicle_x1 + text_width + 2, vehicle_y1 + 2)
+    cv2.rectangle(bb_image, background_rect[0], background_rect[1], (0, 0, 0), -1)
+
+    # Draw the text
+    cv2.putText(bb_image, text, (vehicle_x1, vehicle_y1 - 5), font, 1, (0, 255, 0), 2)
+    
+    
+    cv2.rectangle(bb_image, (licenseplate_x1, licenseplate_y1), (licenseplate_x2, licenseplate_y2), (0, 255, 0), 2) 
+    cv2.rectangle(bb_image, (vehicle_x1, vehicle_y1), (vehicle_x2, vehicle_y2), (0, 255, 0), 2) 
     
     cv2.imwrite(f"{uuid4()}.png", bb_image)
     cv2.imshow("Image with Bounding Box", bb_image)

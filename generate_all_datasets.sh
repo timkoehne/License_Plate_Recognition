@@ -1,0 +1,5 @@
+python generate_vehicle_dataset.py
+python generate_licenseplate_dataset.py
+python generate_character_segmentation_dataset.py
+python generate_character_recognition_digit_dataset.py
+python generate_character_recognition_letter_dataset.py
