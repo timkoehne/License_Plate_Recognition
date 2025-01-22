@@ -198,8 +198,6 @@ def main():
     darknet.free_network_ptr(network)
         
 if __name__ == "__main__":
-    
-    
     options = ["vehicle", "licenseplate", "character_segmentation", "character_recognition_digit", "character_recognition_letter"]
     if len(sys.argv) > 1 and sys.argv[1] in options:
         network_name = sys.argv[1]
