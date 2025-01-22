@@ -1,5 +1,7 @@
+from genericpath import isdir, isfile
 import glob
 import json
+import os
 import sys
 from typing import Literal, Tuple
 from uuid import uuid4
@@ -85,14 +87,6 @@ def sort_licenseplate_bbs(bbs: list[float], vehicle_type: Literal["car"] | Liter
     return sorted_bbs
 
 
-
-vehicle_model = Model("vehicles")
-licenseplate_model = Model("licenseplate")
-character_segmentation_model = Model("character_segmentation")
-character_recognition_letter_model = Model("character_recognition_letter")
-character_recognition_digit_model = Model("character_recognition_digit")
-
-
 def predict_pipeline_licenseplate(cv2_image):
     prediction = make_prediction(cv2_image, vehicle_model, top_k=1)[0]
     vehicle_type = prediction[0]
@@ -162,9 +156,6 @@ def predict_pipeline(cv2_image):
     return entire_licenseplate_prediction
 
 def run_pipeline_with_redundancy(files: list[str]):
-    label_file = files[0][:-4]+".txt"
-    correct_license_plate = read_image_label.read_label(label_file)["license_plate"]
-
     letter_predictions = [{} for _ in range(7)]
     for file in tqdm.tqdm(files): 
         cv2_image = data_preparation.load_cv2_image(file)
@@ -177,12 +168,25 @@ def run_pipeline_with_redundancy(files: list[str]):
                     letter_predictions[letter_pos][letter] = 0
                 letter_predictions[letter_pos][letter] += float(confidence)
 
-    correct_predicted_letters = 0
+    final_prediction_entire_licenseplate = ""
     for i, letter_prediction in enumerate(letter_predictions):
-        predicted_letter = max(letter_prediction, key=lambda x: x[1])[-1]
-        if predicted_letter == correct_license_plate[i]:
-            correct_predicted_letters += 1
-    return correct_predicted_letters
+        predicted_character = max(letter_prediction, key=lambda x: x[1])[-1]
+        final_prediction_entire_licenseplate += predicted_character
+    
+    return final_prediction_entire_licenseplate
+        
+def run_pipeline_with_redundancy_count_correct_characters(files: list[str]):
+    label_file = files[0][:-4]+".txt"
+    correct_license_plate = read_image_label.read_label(label_file)["license_plate"]
+    
+    predicted_licenseplate = run_pipeline_with_redundancy(files)
+    
+    correct_predicted_characters = 0
+    for i, letter_prediction in enumerate(predicted_licenseplate):
+        if letter_prediction == correct_license_plate[i]:
+            correct_predicted_characters += 1
+            
+    return correct_predicted_characters
 
 
 def run_pipeline_without_redundancy(folders: list[str], min_correct_characters: int, percentage_correct_lp_required: float):
@@ -226,7 +230,7 @@ def test_pipeline_with_redundancy(min_characters_correct: int):
     entire_licenseplate_correct = 0
     for folder in tqdm.tqdm(folders):
         files = glob.glob(folder + "/*.png")#[:10]
-        correct_characters = run_pipeline_with_redundancy(files)
+        correct_characters = run_pipeline_with_redundancy_count_correct_characters(files)
         total_correct_characters += correct_characters
         if correct_characters >= min_characters_correct:
             entire_licenseplate_correct += 1
@@ -236,35 +240,62 @@ def test_pipeline_with_redundancy(min_characters_correct: int):
     print(f"There were {entire_licenseplate_correct} correctly predicted licenseplates out of {len(folders)}. Thats {entire_licenseplate_correct/len(folders)*100}%")
 
 
-def show_image_with_detection(filepath):
+def show_image_with_detection(filepath, override_licenseplate: str | None = None):
     img = cv2.imread(filepath)
     prediction = predict_pipeline_licenseplate(img)
     print(prediction)
-    display_licenseplate(img, prediction[0], prediction[1], prediction[2])
+    
+    predicted_licenseplate = prediction[2]
+    if override_licenseplate is not None:
+        predicted_licenseplate = override_licenseplate
+    
+    display_licenseplate(img, prediction[0], prediction[1], predicted_licenseplate)
 
+vehicle_model = None
+licenseplate_model = None
+character_segmentation_model = None
+character_recognition_letter_model = None
+character_recognition_digit_model = None
 
+def main():
+    global vehicle_model
+    global licenseplate_model
+    global character_segmentation_model
+    global character_recognition_letter_model
+    global character_recognition_digit_model
+    
+    if len(sys.argv) > 1:
+        filepath = sys.argv[1]
+        
+        if os.path.exists(filepath):
+            vehicle_model = Model("vehicles")
+            licenseplate_model = Model("licenseplate")
+            character_segmentation_model = Model("character_segmentation")
+            character_recognition_letter_model = Model("character_recognition_letter")
+            character_recognition_digit_model = Model("character_recognition_digit")
+        
+        if os.path.isfile(filepath):
+            show_image_with_detection(filepath)
+        if os.path.isdir(filepath):
+            predicted_licenseplate = run_pipeline_with_redundancy(filepath)
+            show_image_with_detection(filepath, override_licenseplate=predicted_licenseplate)
+        
+        darknet.free_network_ptr(vehicle_model.network)
+        darknet.free_network_ptr(licenseplate_model.network)
+        darknet.free_network_ptr(character_segmentation_model.network)
+        darknet.free_network_ptr(character_recognition_letter_model.network)
+        darknet.free_network_ptr(character_recognition_digit_model.network)
+        
+    else:
+        print("Usage:")
+        print(f"{sys.argv[0]} <image_file_path> - to detect a single image")
+        print(f"{sys.argv[0]} <images_folder_path> - to detect a series of images with temporal redundancy")
+
+if __name__ == "__main__":
+    main()
+    
+    
 # test_pipeline_without_redundandy(6)
 # test_pipeline_without_redundandy(7)
 # test_pipeline_with_redundancy(6)
 # test_pipeline_with_redundancy(7)
-
-
-def main():
-    if len(sys.argv) > 1:
-        filepath = sys.argv[1]
-        show_image_with_detection(filepath)
-    else:
-        print("provide a image filepath")
-
-
-if __name__ == "__main__":
-    main()
-
-
-
-
-darknet.free_network_ptr(vehicle_model.network)
-darknet.free_network_ptr(licenseplate_model.network)
-darknet.free_network_ptr(character_segmentation_model.network)
-darknet.free_network_ptr(character_recognition_letter_model.network)
-darknet.free_network_ptr(character_recognition_digit_model.network)
