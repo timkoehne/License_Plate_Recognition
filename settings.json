@@ -1,0 +1,6 @@
+{
+    "letter_padding": 1,
+    "digit_padding": 1,
+    "model_directory": "/home/tim/",
+    "ufpr_alpr_dirctory": "/mnt/f/OpenScience Data/UFPR-ALPR dataset/"
+}

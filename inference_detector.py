@@ -1,3 +1,4 @@
+import sys
 from typing import Tuple
 from uuid import uuid4
 
@@ -6,15 +7,7 @@ import cv2
 from darknet_python import darknet
 import data_preparation
 
-network_name = "licenseplate"
 bb_percent_error_allowed = 0.1
-
-cfg_file = f"/home/tim/{network_name}/{network_name}.cfg"
-names_file = f"/home/tim/{network_name}/{network_name}.names"
-# validation_files = f"/home/tim/{network_name}/{network_name}_valid.txt"
-validation_files = f"/home/tim/{network_name}/{network_name}_test.txt"
-# weights_file = f"/home/tim/{network_name}/vehicle detection.weights"
-weights_file = f"/home/tim/{network_name}/backup/{network_name}_final.weights"
 
 
 # https://stackoverflow.com/a/71708600
@@ -134,8 +127,6 @@ def find_correct_detections(width, height, class_names, highest_confidence_detec
     true_positives = 0
     false_positives = 0
 
-    
-    
     for i in range(len(correct_results)):
         found_tp = False
         found_fp = False
@@ -175,7 +166,6 @@ def main():
     with open(validation_files, "r") as file:
         validation_images = file.read().splitlines()
         
-    correct_predictions = 0
     no_prediction = 0
     true_positives = 0
     false_positives = 0
@@ -208,4 +198,20 @@ def main():
     darknet.free_network_ptr(network)
         
 if __name__ == "__main__":
-    main()
+    
+    
+    options = ["vehicle", "licenseplate", "character_segmentation", "character_recognition_digit", "character_recognition_letter"]
+    if len(sys.argv) > 1 and sys.argv[1] in options:
+        network_name = sys.argv[1]
+        
+        cfg_file = f"/home/tim/{network_name}/{network_name}.cfg"
+        names_file = f"/home/tim/{network_name}/{network_name}.names"
+        validation_files = f"/home/tim/{network_name}/{network_name}_valid.txt"
+        weights_file = f"/home/tim/{network_name}/backup/{network_name}_final.weights"
+        main()
+    else:
+        print(f"provide network name. \nOptions: {options}")
+
+    
+    
+    

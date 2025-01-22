@@ -1,4 +1,5 @@
 import glob
+import json
 import os
 import shutil
 import cv2
@@ -6,15 +7,18 @@ import tqdm
 import data_preparation
 from read_image_label import read_label
 
-training_path = "/mnt/f/OpenScience Data/UFPR-ALPR dataset/training/"
-validation_path = "/mnt/f/OpenScience Data/UFPR-ALPR dataset/validation/"
-testing_path = "/mnt/f/OpenScience Data/UFPR-ALPR dataset/testing/"
-output_path = "/home/tim/"
-network_name = "licenseplate"
+
+NETWORK_NAME = "licenseplate"
+
+with open("settings.json", "r") as file:
+    settings = json.loads(file.read())
+OUTPUT_PATH = settings["model_directory"]
+UFPR_ALPR_DIRCTORY = settings["ufpr_alpr_dirctory"]
+
 
 CLASS_IDS = {"licenseplate": 0}
 
-output_path = output_path + network_name + "/"
+output_path = OUTPUT_PATH + NETWORK_NAME + "/"
 if not os.path.exists(output_path + "backup/"):
     os.makedirs(output_path + "backup/", exist_ok=True)
 
@@ -88,40 +92,40 @@ def generate_data(
 
 
 def generate_names_file():
-    with open(output_path + network_name + ".names", "w") as file:
+    with open(output_path + NETWORK_NAME + ".names", "w") as file:
         file.write("\n".join([c for c in CLASS_IDS]))
 
 
 def generate_train_file():
     image_files = [name for name in glob.glob(output_path + "train/*.png")]
-    with open(output_path + network_name + f"_train.txt", "w") as file:
+    with open(output_path + NETWORK_NAME + f"_train.txt", "w") as file:
         file.write("\n".join(image_files))
 
 
 def generate_valid_file():
     image_files = [name for name in glob.glob(output_path + "valid/*.png")]
-    with open(output_path + network_name + f"_valid.txt", "w") as file:
+    with open(output_path + NETWORK_NAME + f"_valid.txt", "w") as file:
         file.write("\n".join(image_files))
 
 
 def generate_test_file():
     image_files = [name for name in glob.glob(output_path + "test/*.png")]
-    with open(output_path + network_name + f"_test.txt", "w") as file:
+    with open(output_path + NETWORK_NAME + f"_test.txt", "w") as file:
         file.write("\n".join(image_files))
 
 def generate_data_file():
     lines = []
     lines.append(f"classes = {len(CLASS_IDS)}")
-    lines.append(f"train = {output_path+network_name}_train.txt")
-    lines.append(f"valid = {output_path+network_name}_valid.txt")
-    lines.append(f"names = {output_path+network_name}.names")
+    lines.append(f"train = {output_path+NETWORK_NAME}_train.txt")
+    lines.append(f"valid = {output_path+NETWORK_NAME}_valid.txt")
+    lines.append(f"names = {output_path+NETWORK_NAME}.names")
     lines.append(f"backup = {output_path}backup/")
-    with open(output_path + network_name + ".data", "w") as file:
+    with open(output_path + NETWORK_NAME + ".data", "w") as file:
         file.write("\n".join(lines))
 
 
 def generate_cfg_file():
-    shutil.copyfile("dataset_template_files/yolov2_licenseplate.cfg", output_path + network_name + ".cfg")
+    shutil.copyfile("dataset_template_files/yolov2_licenseplate.cfg", output_path + NETWORK_NAME + ".cfg")
 
 
 def add_pretrained_weights():
@@ -129,8 +133,8 @@ def add_pretrained_weights():
 
 
 def generate_run_command():
-    data_file = network_name + ".data"
-    cfg_file = network_name + ".cfg"
+    data_file = NETWORK_NAME + ".data"
+    cfg_file = NETWORK_NAME + ".cfg"
     pretrained_weights_file = "darknet53.conv.74"
 
     print("finished creating all data. Start training with:")
@@ -139,9 +143,9 @@ def generate_run_command():
     )
 
 
-generate_data(training_path, output_path + "train")
-generate_data(validation_path, output_path + "valid")
-generate_data(testing_path, output_path + "test")
+generate_data(f"{UFPR_ALPR_DIRCTORY}training/", output_path + "train")
+generate_data(f"{UFPR_ALPR_DIRCTORY}validation/", output_path + "valid")
+generate_data(f"{UFPR_ALPR_DIRCTORY}testing/", output_path + "test")
 generate_names_file()
 generate_train_file()
 generate_valid_file()
